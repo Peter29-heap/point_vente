@@ -8,45 +8,45 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
-
+        const { useState, useEffect, useRef } = React;
 
         const storage = {
-        get: async (key) => {
+          get: async (key) => {
             try {
-            const value = localStorage.getItem(key);
-            return value ? { key, value } : null;
+              const value = localStorage.getItem(key);
+              return value ? { key, value } : null;
             } catch (error) {
-            console.error('Erreur lecture storage:', error);
-            return null;
+              console.error('Erreur lecture storage:', error);
+              return null;
             }
-        },
-        set: async (key, value) => {
+          },
+          set: async (key, value) => {
             try {
-            localStorage.setItem(key, value);
-            return { key, value };
+              localStorage.setItem(key, value);
+              return { key, value };
             } catch (error) {
-            console.error('Erreur écriture storage:', error);
-            return null;
+              console.error('Erreur écriture storage:', error);
+              return null;
             }
-        },
-        delete: async (key) => {
+          },
+          delete: async (key) => {
             try {
-            localStorage.removeItem(key);
-            return { key, deleted: true };
+              localStorage.removeItem(key);
+              return { key, deleted: true };
             } catch (error) {
-            console.error('Erreur suppression storage:', error);
-            return null;
+              console.error('Erreur suppression storage:', error);
+              return null;
             }
-        }
+          }
         };
 
-        // Icons (simplified versions)
+        // Icons
         const Plus = () => <span>➕</span>;
         const Trash2 = () => <span>🗑️</span>;
         const Calendar = () => <span>📅</span>;
@@ -54,10 +54,14 @@
         const Package = () => <span>📦</span>;
         const Upload = () => <span>⬆️</span>;
         const Download = () => <span>⬇️</span>;
+        const FileSpreadsheet = () => <span>📊</span>;
+        const TrendingUp = () => <span>📈</span>;
+        const Award = () => <span>🏆</span>;
 
         function SalesTracker() {
           const [sales, setSales] = useState([]);
           const [showForm, setShowForm] = useState(false);
+          const [showTopProducts, setShowTopProducts] = useState(false);
           const [formData, setFormData] = useState({
             date: new Date().toISOString().split('T')[0],
             article: '',
@@ -68,6 +72,8 @@
             startDate: '',
             endDate: ''
           });
+          const [importing, setImporting] = useState(false);
+          const fileInputRef = useRef(null);
 
           useEffect(() => {
             loadSales();
@@ -92,321 +98,111 @@
             }
           };
 
-          const importInitialData = () => {
-            const initialData = [
-                {id: Date.now() + 1, date: '2025-12-03', article: 'Monster', quantity: 2, unitPrice: 500, total: 1000},
-                {id: Date.now() + 2, date: '2025-12-03', article: 'lacoco', quantity: 3, unitPrice: 250, total: 750},
-                {id: Date.now() + 3, date: '2025-12-03', article: 'fanta-coca-sprite', quantity: 2, unitPrice: 300, total: 600},
-                {id: Date.now() + 4, date: '2025-12-03', article: "LORD'S 75cl", quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 5, date: '2025-12-03', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 6, date: '2025-12-03', article: 'ORIGIN', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 7, date: '2025-12-03', article: '8PM Boite', quantity: 1, unitPrice: 3500, total: 3500},
-                {id: Date.now() + 8, date: '2025-12-03', article: 'CALYPSO', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 9, date: '2025-12-03', article: 'Smirnoff', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 10, date: '2025-12-03', article: 'CALYPSO', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 11, date: '2025-12-03', article: 'TOMA', quantity: 2, unitPrice: 2000, total: 4000},
-                {id: Date.now() + 12, date: '2025-12-02', article: 'AMARULA COFFRET', quantity: 1, unitPrice: 6000, total: 6000},
-                {id: Date.now() + 13, date: '2025-12-02', article: '8PM Boite', quantity: 1, unitPrice: 3500, total: 3500},
-                {id: Date.now() + 14, date: '2025-12-02', article: 'Magic moment', quantity: 1, unitPrice: 4500, total: 4500},
-                {id: Date.now() + 15, date: '2025-12-02', article: 'Veuve Du Vernay', quantity: 1, unitPrice: 5000, total: 5000},
-                {id: Date.now() + 16, date: '2025-12-02', article: 'JP CHENET', quantity: 1, unitPrice: 4500, total: 4500},
-                {id: Date.now() + 17, date: '2025-12-02', article: 'Eagle verre', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 18, date: '2025-12-02', article: "Seaman's royale", quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 19, date: '2025-12-02', article: "Seaman's Premium", quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 20, date: '2025-12-02', article: 'Best 20cl', quantity: 3, unitPrice: 700, total: 2100},
-                {id: Date.now() + 21, date: '2025-12-02', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 22, date: '2025-12-02', article: 'Royal circle 75cl', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 23, date: '2025-12-02', article: 'Flirt Vodka', quantity: 1, unitPrice: 4000, total: 4000},
-                {id: Date.now() + 24, date: '2025-12-02', article: 'ELLIOT', quantity: 1, unitPrice: 4500, total: 4500},
-                {id: Date.now() + 25, date: '2025-11-30', article: 'BIG BEN', quantity: 2, unitPrice: 2000, total: 4000},
-                {id: Date.now() + 26, date: '2025-11-30', article: 'Magic moment', quantity: 1, unitPrice: 4500, total: 4500},
-                {id: Date.now() + 27, date: '2025-11-30', article: 'Orange Sec', quantity: 1, unitPrice: 5500, total: 5500},
-                {id: Date.now() + 28, date: '2025-11-29', article: 'ORIGIN', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 29, date: '2025-11-29', article: 'Legende whisky', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 30, date: '2025-11-29', article: 'TOMA', quantity: 2, unitPrice: 2000, total: 4000},
-                {id: Date.now() + 31, date: '2025-11-28', article: 'CALYPSO', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 32, date: '2025-11-28', article: "Seaman's Premium", quantity: 2, unitPrice: 2500, total: 5000},
-                {id: Date.now() + 33, date: '2025-11-28', article: "LORD'S 75cl", quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 34, date: '2025-11-28', article: 'Best pack', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 35, date: '2025-11-27', article: 'Best pack', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 36, date: '2025-11-27', article: 'ORIGIN', quantity: 2, unitPrice: 2000, total: 4000},
-                {id: Date.now() + 37, date: '2025-11-27', article: 'Veleta', quantity: 2, unitPrice: 1500, total: 3000},
-                {id: Date.now() + 38, date: '2025-11-27', article: 'Veleta', quantity: 1, unitPrice: 1500, total: 1500},
-                {id: Date.now() + 39, date: '2025-11-27', article: 'KUBANAH (good fathers)', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 40, date: '2025-11-27', article: 'CALYPSO', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 41, date: '2025-11-26', article: '8PM Boite', quantity: 1, unitPrice: 3500, total: 3500},
-                {id: Date.now() + 42, date: '2025-11-25', article: 'Royal circle 75cl', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 43, date: '2025-11-24', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 44, date: '2025-11-24', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 45, date: '2025-11-24', article: 'TOMA', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 46, date: '2025-11-24', article: 'Bacchus 1Ltr', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 47, date: '2025-11-22', article: 'ORIGIN', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 48, date: '2025-11-22', article: 'TOMA', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 49, date: '2025-11-21', article: 'Imperial blue 18cl', quantity: 1, unitPrice: 700, total: 700},
-                {id: Date.now() + 50, date: '2025-11-21', article: 'Legende whisky', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 51, date: '2025-11-21', article: 'Best pack', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 52, date: '2025-11-21', article: 'SKIRT', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 53, date: '2025-11-20', article: 'BIG BEN', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 54, date: '2025-11-19', article: "Jack william's whisky", quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 55, date: '2025-11-19', article: 'Best Whisky', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 56, date: '2025-11-18', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 57, date: '2025-11-18', article: 'Veuve Du Vernay', quantity: 1, unitPrice: 5000, total: 5000},
-                {id: Date.now() + 58, date: '2025-11-18', article: 'ELLIOT', quantity: 1, unitPrice: 4500, total: 4500},
-                {id: Date.now() + 59, date: '2025-11-18', article: 'Veleta', quantity: 1, unitPrice: 1500, total: 1500},
-                {id: Date.now() + 60, date: '2025-11-16', article: 'MASSIMO', quantity: 1, unitPrice: 6000, total: 6000},
-                {id: Date.now() + 61, date: '2025-11-16', article: 'OLD ADMIRAL VSOP', quantity: 1, unitPrice: 5000, total: 5000},
-                {id: Date.now() + 62, date: '2025-11-16', article: 'Veuve Du Vernay', quantity: 1, unitPrice: 5000, total: 5000},
-                {id: Date.now() + 63, date: '2025-11-16', article: 'BIG BEN', quantity: 2, unitPrice: 2000, total: 4000},
-                {id: Date.now() + 64, date: '2025-11-16', article: 'BIG BEN', quantity: 2, unitPrice: 2000, total: 4000},
-                {id: Date.now() + 65, date: '2025-11-16', article: 'Eagle verre', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 66, date: '2025-11-15', article: 'Monster', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 67, date: '2025-11-15', article: 'Magic moment', quantity: 1, unitPrice: 4500, total: 4500},
-                {id: Date.now() + 68, date: '2025-11-15', article: 'Flirt Vodka', quantity: 1, unitPrice: 4000, total: 4000},
-                {id: Date.now() + 69, date: '2025-11-15', article: 'Eagle verre', quantity: 2, unitPrice: 2500, total: 5000},
-                {id: Date.now() + 70, date: '2025-11-15', article: 'fanta-coca-sprite', quantity: 1, unitPrice: 300, total: 300},
-                {id: Date.now() + 71, date: '2025-11-15', article: 'MASSIMO', quantity: 1, unitPrice: 6000, total: 6000},
-                {id: Date.now() + 72, date: '2025-11-15', article: 'Roche mazet', quantity: 2, unitPrice: 5500, total: 11000},
-                {id: Date.now() + 73, date: '2025-11-14', article: 'SKIRT', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 74, date: '2025-11-14', article: 'Magic moment', quantity: 1, unitPrice: 4500, total: 4500},
-                {id: Date.now() + 75, date: '2025-11-13', article: "Lord's 17,5cl", quantity: 3, unitPrice: 600, total: 1800},
-                {id: Date.now() + 76, date: '2025-11-13', article: 'SKIRT', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 77, date: '2025-11-13', article: 'Monster', quantity: 6, unitPrice: 416.667, total: 2500},
-                {id: Date.now() + 78, date: '2025-11-13', article: 'Flirt Vodka', quantity: 1, unitPrice: 4000, total: 4000},
-                {id: Date.now() + 79, date: '2025-11-11', article: 'BIG BEN', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 80, date: '2025-11-11', article: 'CALYPSO', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 81, date: '2025-11-11', article: 'CAMPARI 1LTR', quantity: 1, unitPrice: 9500, total: 9500},
-                {id: Date.now() + 82, date: '2025-11-11', article: 'royale circle 20cl', quantity: 1, unitPrice: 800, total: 800},
-                {id: Date.now() + 83, date: '2025-11-11', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 84, date: '2025-11-10', article: 'royale circle 20cl', quantity: 1, unitPrice: 800, total: 800},
-                {id: Date.now() + 85, date: '2025-11-10', article: 'TOMA', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 86, date: '2025-11-10', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 87, date: '2025-11-10', article: 'Action Bitters', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 88, date: '2025-11-08', article: 'fanta-coca-sprite', quantity: 6, unitPrice: 300, total: 1800},
-                {id: Date.now() + 89, date: '2025-11-08', article: 'Joven', quantity: 1, unitPrice: 4000, total: 4000},
-                {id: Date.now() + 90, date: '2025-11-08', article: 'Veleta', quantity: 1, unitPrice: 1500, total: 1500},
-                {id: Date.now() + 91, date: '2025-11-08', article: 'Royal circle 75cl', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 92, date: '2025-11-08', article: 'Flirt Vodka', quantity: 1, unitPrice: 4000, total: 4000},
-                {id: Date.now() + 93, date: '2025-11-08', article: 'Monster', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 94, date: '2025-11-08', article: 'fanta-coca-sprite', quantity: 18, unitPrice: 300, total: 5400},
-                {id: Date.now() + 95, date: '2025-11-06', article: "Seaman's Premium", quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 96, date: '2025-11-06', article: 'AMARULA COFFRET', quantity: 1, unitPrice: 6000, total: 6000},
-                {id: Date.now() + 97, date: '2025-11-06', article: 'AGOR', quantity: 1, unitPrice: 4000, total: 4000},
-                {id: Date.now() + 98, date: '2025-11-06', article: 'BIG BEN', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 99, date: '2025-11-06', article: 'TOMA', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 100, date: '2025-11-06', article: 'ST LAUREN', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 101, date: '2025-11-05', article: 'Monster', quantity: 3, unitPrice: 500, total: 1500},
-                {id: Date.now() + 102, date: '2025-11-04', article: 'TOMA', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 103, date: '2025-11-04', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 104, date: '2025-11-04', article: 'MASSIMO', quantity: 1, unitPrice: 6000, total: 6000},
-                {id: Date.now() + 105, date: '2025-11-03', article: 'Veuve Du Vernay', quantity: 1, unitPrice: 5000, total: 5000},
-                {id: Date.now() + 106, date: '2025-11-03', article: 'Monster', quantity: 6, unitPrice: 416.667, total: 2500},
-                {id: Date.now() + 107, date: '2025-11-03', article: 'JACK DANIELS', quantity: 1, unitPrice: 12500, total: 12500},
-                {id: Date.now() + 108, date: '2025-11-03', article: 'fanta-coca-sprite', quantity: 1, unitPrice: 300, total: 300},
-                {id: Date.now() + 109, date: '2025-11-03', article: 'CALYPSO', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 110, date: '2025-11-02', article: 'Veuve Du Vernay', quantity: 1, unitPrice: 5000, total: 5000},
-                {id: Date.now() + 111, date: '2025-11-02', article: 'Royal circle 75cl', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 112, date: '2025-11-02', article: 'Bacchus 1Ltr', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 113, date: '2025-11-02', article: 'TOMA', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 114, date: '2025-11-02', article: 'BIG BEN', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 115, date: '2025-11-02', article: 'SKIRT', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 116, date: '2025-11-01', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 117, date: '2025-11-01', article: 'Royal circle 75cl', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 118, date: '2025-11-01', article: 'Eagle verre', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 119, date: '2025-11-01', article: 'CALYPSO', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 120, date: '2025-10-31', article: 'Legende whisky', quantity: 2, unitPrice: 2500, total: 5000},
-                {id: Date.now() + 121, date: '2025-10-31', article: 'Monster', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 122, date: '2025-10-31', article: 'Dominio Del Rey rose', quantity: 1, unitPrice: 4000, total: 4000},
-                {id: Date.now() + 123, date: '2025-10-31', article: 'Monster', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 124, date: '2025-10-31', article: 'CALYPSO', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 125, date: '2025-10-30', article: 'Veuve Du Vernay', quantity: 2, unitPrice: 5000, total: 10000},
-                {id: Date.now() + 126, date: '2025-10-28', article: 'Robertson winery white', quantity: 1, unitPrice: 3500, total: 3500},
-                {id: Date.now() + 127, date: '2025-10-28', article: 'lacoco', quantity: 2, unitPrice: 250, total: 500},
-                {id: Date.now() + 128, date: '2025-10-28', article: 'Monster', quantity: 3, unitPrice: 500, total: 1500},
-                {id: Date.now() + 129, date: '2025-10-28', article: 'Best Whisky', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 130, date: '2025-10-28', article: 'royale circle 20cl', quantity: 8, unitPrice: 750, total: 6000},
-                {id: Date.now() + 131, date: '2025-10-28', article: 'Royal circle 75cl', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 132, date: '2025-10-28', article: 'Royal circle 75cl', quantity: 3, unitPrice: 2833.333, total: 8500},
-                {id: Date.now() + 133, date: '2025-10-28', article: 'Monster', quantity: 6, unitPrice: 416.667, total: 2500},
-                {id: Date.now() + 134, date: '2025-10-25', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 135, date: '2025-10-25', article: 'SKIRT', quantity: 2, unitPrice: 2000, total: 4000},
-                {id: Date.now() + 136, date: '2025-10-25', article: 'Black Island', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 137, date: '2025-10-25', article: 'Flirt Vodka', quantity: 1, unitPrice: 4000, total: 4000},
-                {id: Date.now() + 138, date: '2025-10-25', article: 'TOMA', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 139, date: '2025-10-24', article: 'JP CHENET', quantity: 2, unitPrice: 4500, total: 9000},
-                {id: Date.now() + 140, date: '2025-10-24', article: 'Journee speciale blanc', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 141, date: '2025-10-24', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 142, date: '2025-10-24', article: 'Black Island', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 143, date: '2025-10-24', article: 'SKIRT', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 144, date: '2025-10-24', article: 'TOMA', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 145, date: '2025-10-24', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 146, date: '2025-10-24', article: '8PM Boite', quantity: 2, unitPrice: 3500, total: 7000},
-                {id: Date.now() + 147, date: '2025-10-23', article: 'Royal circle 75cl', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 148, date: '2025-10-23', article: 'royale circle 20cl', quantity: 3, unitPrice: 800, total: 2400},
-                {id: Date.now() + 149, date: '2025-10-23', article: 'Monster', quantity: 6, unitPrice: 416.667, total: 2500},
-                {id: Date.now() + 150, date: '2025-10-23', article: 'Orange Sec', quantity: 1, unitPrice: 5500, total: 5500},
-                {id: Date.now() + 151, date: '2025-10-22', article: 'Jackson', quantity: 1, unitPrice: 4500, total: 4500},
-                {id: Date.now() + 152, date: '2025-10-22', article: 'AMARULA COFFRET', quantity: 1, unitPrice: 6000, total: 6000},
-                {id: Date.now() + 153, date: '2025-10-22', article: "WILLIAM LAWSON'S 75cl", quantity: 1, unitPrice: 5500, total: 5500},
-                {id: Date.now() + 154, date: '2025-10-22', article: 'TOMA', quantity: 2, unitPrice: 2000, total: 4000},
-                {id: Date.now() + 155, date: '2025-10-22', article: 'Legende whisky', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 156, date: '2025-10-22', article: 'CALYPSO', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 157, date: '2025-10-21', article: 'Royal circle 75cl', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 158, date: '2025-10-21', article: 'CAMPARI 1LTR', quantity: 1, unitPrice: 9500, total: 9500},
-                {id: Date.now() + 159, date: '2025-10-21', article: 'DON ROYALE', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 160, date: '2025-10-21', article: 'AMERICAN HONEY', quantity: 1, unitPrice: 7500, total: 7500},
-                {id: Date.now() + 161, date: '2025-10-21', article: 'Legende whisky', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 162, date: '2025-10-21', article: 'BIG BEN', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 163, date: '2025-10-20', article: 'royale circle 20cl', quantity: 1, unitPrice: 800, total: 800},
-                {id: Date.now() + 164, date: '2025-10-20', article: 'Royal circle 75cl', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 165, date: '2025-10-20', article: 'Best 20cl', quantity: 1, unitPrice: 700, total: 700},
-                {id: Date.now() + 166, date: '2025-10-20', article: 'Carnivor rouge', quantity: 1, unitPrice: 4500, total: 4500},
-                {id: Date.now() + 167, date: '2025-10-20', article: 'CALYPSO', quantity: 4, unitPrice: 2000, total: 8000},
-                {id: Date.now() + 168, date: '2025-10-20', article: 'Four cousins blanc', quantity: 1, unitPrice: 3500, total: 3500},
-                {id: Date.now() + 169, date: '2025-10-20', article: 'KUBANAH (good fathers)', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 170, date: '2025-10-20', article: "GORDON'S", quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 171, date: '2025-10-20', article: 'Monster', quantity: 12, unitPrice: 416.667, total: 5000},
-                {id: Date.now() + 172, date: '2025-10-19', article: 'Desperado', quantity: 2, unitPrice: 500, total: 1000},
-                {id: Date.now() + 173, date: '2025-10-19', article: 'Monster', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 174, date: '2025-10-17', article: 'CALYPSO', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 175, date: '2025-10-16', article: 'ST LAUREN', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 176, date: '2025-10-16', article: 'ANDRE ROSE', quantity: 1, unitPrice: 4500, total: 4500},
-                {id: Date.now() + 177, date: '2025-10-13', article: 'Monster', quantity: 2, unitPrice: 500, total: 1000},
-                {id: Date.now() + 178, date: '2025-10-13', article: 'SKIRT', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 179, date: '2025-10-12', article: 'LONG RIDER', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 180, date: '2025-10-12', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 181, date: '2025-10-12', article: '8PM carton', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 182, date: '2025-10-12', article: 'Imperial blue 75cl', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 183, date: '2025-10-12', article: "Seaman's Premium", quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 184, date: '2025-10-11', article: 'Legende whisky', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 185, date: '2025-10-10', article: 'TOMA', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 186, date: '2025-10-10', article: 'Dominio Del Rey vin', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 187, date: '2025-10-10', article: 'JP CHENET', quantity: 1, unitPrice: 4500, total: 4500},
-                {id: Date.now() + 188, date: '2025-10-10', article: 'Best cream 75cl', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 189, date: '2025-10-10', article: 'Martini Rosso', quantity: 1, unitPrice: 6000, total: 6000},
-                {id: Date.now() + 190, date: '2025-10-09', article: 'royale circle 20cl', quantity: 1, unitPrice: 800, total: 800},
-                {id: Date.now() + 191, date: '2025-10-09', article: "Lord's 17,5cl", quantity: 1, unitPrice: 600, total: 600},
-                {id: Date.now() + 192, date: '2025-10-09', article: 'Veleta', quantity: 1, unitPrice: 1500, total: 1500},
-                {id: Date.now() + 193, date: '2025-10-09', article: 'Best pack', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 194, date: '2025-10-09', article: 'Eagle verre', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 195, date: '2025-10-09', article: 'Martini Rosso', quantity: 1, unitPrice: 6000, total: 6000},
-                {id: Date.now() + 196, date: '2025-10-09', article: 'RED LABEL', quantity: 1, unitPrice: 7000, total: 7000},
-                {id: Date.now() + 197, date: '2025-10-08', article: 'BIG BEN', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 198, date: '2025-10-08', article: 'AGOR', quantity: 1, unitPrice: 4000, total: 4000},
-                {id: Date.now() + 199, date: '2025-10-08', article: 'royale circle 20cl', quantity: 1, unitPrice: 800, total: 800},
-                {id: Date.now() + 200, date: '2025-10-08', article: 'royale circle 20cl', quantity: 1, unitPrice: 800, total: 800},
-                {id: Date.now() + 201, date: '2025-10-07', article: 'AMARULA COFFRET', quantity: 1, unitPrice: 6000, total: 6000},
-                {id: Date.now() + 202, date: '2025-10-07', article: 'Barron Romero', quantity: 2, unitPrice: 2000, total: 4000},
-                {id: Date.now() + 203, date: '2025-10-07', article: 'Monster', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 204, date: '2025-10-07', article: 'Campari 20cl', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 205, date: '2025-10-07', article: 'royale circle 20cl', quantity: 1, unitPrice: 800, total: 800},
-                {id: Date.now() + 206, date: '2025-10-07', article: 'AGOR', quantity: 1, unitPrice: 4000, total: 4000},
-                {id: Date.now() + 207, date: '2025-10-05', article: 'Veleta', quantity: 1, unitPrice: 1500, total: 1500},
-                {id: Date.now() + 208, date: '2025-10-04', article: 'Monster', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 209, date: '2025-10-04', article: "WILLIAM LAWSON'S 75cl", quantity: 1, unitPrice: 5500, total: 5500},
-                {id: Date.now() + 210, date: '2025-10-03', article: 'AGOR', quantity: 1, unitPrice: 4000, total: 4000},
-                {id: Date.now() + 211, date: '2025-10-02', article: 'Captain morgan', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 212, date: '2025-10-02', article: 'Monster', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 213, date: '2025-10-02', article: '8PM Boite', quantity: 1, unitPrice: 3500, total: 3500},
-                {id: Date.now() + 214, date: '2025-10-02', article: 'royale circle 20cl', quantity: 1, unitPrice: 800, total: 800},
-                {id: Date.now() + 215, date: '2025-10-02', article: 'BIG BEN', quantity: 1, unitPrice: 1800, total: 1800},
-                {id: Date.now() + 216, date: '2025-10-02', article: "Lord's 17,5cl", quantity: 2, unitPrice: 600, total: 1200},
-                {id: Date.now() + 217, date: '2025-10-02', article: 'fanta-coca-sprite', quantity: 1, unitPrice: 300, total: 300},
-                {id: Date.now() + 218, date: '2025-10-02', article: 'Imperial blue 18cl', quantity: 1, unitPrice: 700, total: 700},
-                {id: Date.now() + 219, date: '2025-10-02', article: 'Best 20cl', quantity: 2, unitPrice: 700, total: 1400},
-                {id: Date.now() + 220, date: '2025-10-02', article: 'Monster', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 221, date: '2025-10-02', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 222, date: '2025-10-02', article: 'Desperado', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 223, date: '2025-10-02', article: 'Legende whisky', quantity: 2, unitPrice: 2500, total: 5000},
-                {id: Date.now() + 224, date: '2025-10-02', article: 'Veuve Du Vernay', quantity: 1, unitPrice: 5000, total: 5000},
-                {id: Date.now() + 225, date: '2025-10-02', article: 'Smirnoff', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 226, date: '2025-10-02', article: 'CALYPSO', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 227, date: '2025-10-01', article: 'Campari 20cl', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 228, date: '2025-10-01', article: 'Royal circle 75cl', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 229, date: '2025-09-30', article: "Lord's 17,5cl", quantity: 2, unitPrice: 600, total: 1200},
-                {id: Date.now() + 230, date: '2025-09-30', article: 'BIG BEN', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 231, date: '2025-09-30', article: 'Legende whisky', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 232, date: '2025-09-29', article: 'CALYPSO', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 233, date: '2025-09-29', article: 'Smirnoff', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 234, date: '2025-09-29', article: 'Veleta', quantity: 1, unitPrice: 1500, total: 1500},
-                {id: Date.now() + 235, date: '2025-09-29', article: 'Action Bitters', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 236, date: '2025-09-28', article: "LORD'S 75cl", quantity: 2, unitPrice: 2500, total: 5000},
-                {id: Date.now() + 237, date: '2025-09-28', article: 'Eagle verre', quantity: 2, unitPrice: 2500, total: 5000},
-                {id: Date.now() + 238, date: '2025-09-28', article: 'Magic moment', quantity: 1, unitPrice: 4500, total: 4500},
-                {id: Date.now() + 239, date: '2025-09-28', article: 'Smirnoff', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 240, date: '2025-09-27', article: 'Eagle verre', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 241, date: '2025-09-27', article: 'Orange Sec', quantity: 1, unitPrice: 5500, total: 5500},
-                {id: Date.now() + 242, date: '2025-09-27', article: 'Captain morgan', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 243, date: '2025-09-27', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 244, date: '2025-09-27', article: 'EVA IMPORTED', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 245, date: '2025-09-26', article: 'Eagle verre', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 246, date: '2025-09-26', article: 'BIG BEN', quantity: 1, unitPrice: 1750, total: 1750},
-                {id: Date.now() + 247, date: '2025-09-25', article: 'Imperial blue 18cl', quantity: 1, unitPrice: 700, total: 700},
-                {id: Date.now() + 248, date: '2025-09-25', article: 'Eagle verre', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 249, date: '2025-09-25', article: 'Imperial blue 18cl', quantity: 1, unitPrice: 700, total: 700},
-                {id: Date.now() + 250, date: '2025-09-24', article: "Seaman's royale", quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 251, date: '2025-09-22', article: 'Legende whisky', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 252, date: '2025-09-22', article: 'Imperial blue 18cl', quantity: 1, unitPrice: 700, total: 700},
-                {id: Date.now() + 253, date: '2025-09-22', article: 'Imperial blue 18cl', quantity: 3, unitPrice: 700, total: 2100},
-                {id: Date.now() + 254, date: '2025-09-21', article: 'Imperial blue 18cl', quantity: 1, unitPrice: 700, total: 700},
-                {id: Date.now() + 255, date: '2025-09-21', article: 'RED LABEL', quantity: 1, unitPrice: 7000, total: 7000},
-                {id: Date.now() + 256, date: '2025-09-19', article: 'Flirt Vodka', quantity: 1, unitPrice: 4000, total: 4000},
-                {id: Date.now() + 257, date: '2025-09-19', article: 'Royal circle 75cl', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 258, date: '2025-09-19', article: 'Bacchus 75cl', quantity: 1, unitPrice: 1500, total: 1500},
-                {id: Date.now() + 259, date: '2025-09-19', article: 'Veuve Du Vernay', quantity: 1, unitPrice: 5000, total: 5000},
-                {id: Date.now() + 260, date: '2025-09-18', article: 'Legende whisky', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 261, date: '2025-09-18', article: "WILLIAM LAWSON'S 75cl", quantity: 1, unitPrice: 5500, total: 5500},
-                {id: Date.now() + 262, date: '2025-09-17', article: 'Imperial blue 18cl', quantity: 2, unitPrice: 700, total: 1400},
-                {id: Date.now() + 263, date: '2025-09-17', article: 'Imperial blue 18cl', quantity: 2, unitPrice: 700, total: 1400},
-                {id: Date.now() + 264, date: '2025-09-17', article: 'Imperial blue 18cl', quantity: 2, unitPrice: 700, total: 1400},
-                {id: Date.now() + 265, date: '2025-09-17', article: 'Royal circle 75cl', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 266, date: '2025-09-16', article: 'Monster', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 267, date: '2025-09-16', article: 'fanta-coca-sprite', quantity: 1, unitPrice: 300, total: 300},
-                {id: Date.now() + 268, date: '2025-09-15', article: 'Legende whisky', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 269, date: '2025-09-14', article: "LORD'S 75cl", quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 270, date: '2025-09-14', article: 'Royal circle 75cl', quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 271, date: '2025-09-14', article: 'LONG RIDER', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 272, date: '2025-09-14', article: 'LONG RIDER', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 273, date: '2025-09-13', article: 'AGOR', quantity: 2, unitPrice: 4000, total: 8000},
-                {id: Date.now() + 274, date: '2025-09-11', article: 'LONG RIDER', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 275, date: '2025-09-11', article: "Seaman's royale", quantity: 1, unitPrice: 3000, total: 3000},
-                {id: Date.now() + 276, date: '2025-09-11', article: 'lacoco', quantity: 1, unitPrice: 250, total: 250},
-                {id: Date.now() + 277, date: '2025-09-11', article: 'royale circle 20cl', quantity: 1, unitPrice: 800, total: 800},
-                {id: Date.now() + 278, date: '2025-09-11', article: 'lacoco', quantity: 1, unitPrice: 250, total: 250},
-                {id: Date.now() + 279, date: '2025-09-11', article: 'BIG BEN', quantity: 3, unitPrice: 1800, total: 5400},
-                {id: Date.now() + 280, date: '2025-09-10', article: 'AMARULA COFFRET', quantity: 1, unitPrice: 6000, total: 6000},
-                {id: Date.now() + 281, date: '2025-09-10', article: 'Desperado', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 282, date: '2025-09-09', article: 'Barron Romero', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 283, date: '2025-09-09', article: 'Legende whisky', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 284, date: '2025-09-08', article: 'Legende whisky', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 285, date: '2025-09-07', article: 'EVA IMPORTED', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 286, date: '2025-09-07', article: 'Eagle verre', quantity: 2, unitPrice: 2500, total: 5000},
-                {id: Date.now() + 287, date: '2025-09-06', article: 'lacoco', quantity: 1, unitPrice: 250, total: 250},
-                {id: Date.now() + 288, date: '2025-09-06', article: 'Monster', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 289, date: '2025-09-06', article: 'Monster', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 290, date: '2025-09-06', article: 'Monster', quantity: 1, unitPrice: 500, total: 500},
-                {id: Date.now() + 291, date: '2025-09-06', article: 'AGOR', quantity: 1, unitPrice: 4000, total: 4000},
-                {id: Date.now() + 292, date: '2025-09-06', article: 'Action Bitters', quantity: 1, unitPrice: 2000, total: 2000},
-                {id: Date.now() + 293, date: '2025-09-06', article: 'Legende whisky', quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 294, date: '2025-09-05', article: "LORD'S 75cl", quantity: 1, unitPrice: 2500, total: 2500},
-                {id: Date.now() + 295, date: '2025-09-04', article: 'Imperial blue 18cl', quantity: 1, unitPrice: 700, total: 700}
+          const parseExcelDate = (dateValue) => {
+            if (!dateValue) return null;
 
-            ];
+            if (typeof dateValue === 'string') {
+              const parts = dateValue.split('/');
+              if (parts.length === 3) {
+                const [day, month, year] = parts;
+                return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+              }
+              if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                return dateValue;
+              }
+            }
 
-            const updatedSales = [...sales, ...initialData];
-            setSales(updatedSales);
-            saveSales(updatedSales);
-            alert(`${initialData.length} ventes ont été importées avec succès !`);
+            if (typeof dateValue === 'number') {
+              const date = new Date((dateValue - 25569) * 86400 * 1000);
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            }
+
+            return null;
           };
 
-          const exportData = () => {
-            const dataStr = JSON.stringify(sales, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `ventes_${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-            URL.revokeObjectURL(url);
+          const handleFileImport = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            setImporting(true);
+            try {
+              const data = await file.arrayBuffer();
+              const workbook = XLSX.read(data);
+              const sheetName = workbook.SheetNames[0];
+              const worksheet = workbook.Sheets[sheetName];
+              const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+              const importedSales = jsonData
+                .map((row, index) => {
+                  const date = parseExcelDate(
+                    row['Date'] || row['date'] || row['DATE']
+                  );
+                  const article = row['Article'] || row['article'] || row['ARTICLE'] || '';
+                  const quantity = parseInt(row['Quantité'] || row['Quantite'] || row['quantity'] || row['QUANTITY'] || 1);
+                  const unitPrice = parseFloat(
+                    String(row['Prix Unitaire'] || row['Prix Unit.'] || row['unitPrice'] || row['PRIX UNITAIRE'] || 0)
+                      .replace(/\s/g, '')
+                      .replace('XOF', '')
+                      .replace(',', '.')
+                  );
+                  const total = parseFloat(
+                    String(row['Total'] || row['total'] || row['TOTAL'] || (quantity * unitPrice))
+                      .replace(/\s/g, '')
+                      .replace('XOF', '')
+                      .replace(',', '.')
+                  );
+
+                  if (!date || !article || !unitPrice) {
+                    console.warn(`Ligne ${index + 2} ignorée:`, row);
+                    return null;
+                  }
+
+                  return {
+                    id: Date.now() + index,
+                    date,
+                    article: article.trim(),
+                    quantity,
+                    unitPrice,
+                    total
+                  };
+                })
+                .filter(Boolean);
+
+              if (importedSales.length === 0) {
+                alert('❌ Aucune donnée valide trouvée dans le fichier.\n\nAssurez-vous que les colonnes sont nommées:\n- Date\n- Article\n- Quantité\n- Prix Unitaire\n- Total');
+                return;
+              }
+
+              const updatedSales = [...sales, ...importedSales];
+              setSales(updatedSales);
+              await saveSales(updatedSales);
+
+              alert(`✅ ${importedSales.length} ventes importées avec succès !`);
+              event.target.value = '';
+            } catch (error) {
+              console.error('Erreur import:', error);
+              alert('❌ Erreur lors de l\'importation du fichier.\n\n' + error.message);
+            } finally {
+              setImporting(false);
+            }
+          };
+
+          const exportToExcel = () => {
+            const worksheet = XLSX.utils.json_to_sheet(
+              sales.map(s => ({
+                'Date': new Date(s.date).toLocaleDateString('fr-FR'),
+                'Article': s.article,
+                'Quantité': s.quantity,
+                'Prix Unitaire': s.unitPrice,
+                'Total': s.total
+              }))
+            );
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Ventes');
+            XLSX.writeFile(workbook, `ventes_${new Date().toISOString().split('T')[0]}.xlsx`);
           };
 
           const handleSubmit = (e) => {
@@ -437,9 +233,11 @@
           };
 
           const deleteSale = (id) => {
-            const updatedSales = sales.filter(sale => sale.id !== id);
-            setSales(updatedSales);
-            saveSales(updatedSales);
+            if (confirm('Supprimer cette vente ?')) {
+              const updatedSales = sales.filter(sale => sale.id !== id);
+              setSales(updatedSales);
+              saveSales(updatedSales);
+            }
           };
 
           const clearAllData = async () => {
@@ -473,14 +271,47 @@
             return getFilteredSales().reduce((sum, sale) => sum + sale.total, 0);
           };
 
+          // Analyse des produits les plus vendus
+          const getTopProducts = () => {
+            const filteredSales = getFilteredSales();
+            const productStats = {};
+
+            filteredSales.forEach(sale => {
+              const productName = sale.article.toUpperCase();
+              if (!productStats[productName]) {
+                productStats[productName] = {
+                  name: sale.article,
+                  totalQuantity: 0,
+                  totalRevenue: 0,
+                  salesCount: 0,
+                  avgPrice: 0
+                };
+              }
+              productStats[productName].totalQuantity += sale.quantity;
+              productStats[productName].totalRevenue += sale.total;
+              productStats[productName].salesCount += 1;
+            });
+
+            // Calculer le prix moyen
+            Object.keys(productStats).forEach(key => {
+              const product = productStats[key];
+              product.avgPrice = product.totalRevenue / product.totalQuantity;
+            });
+
+            // Convertir en tableau et trier
+            return Object.values(productStats)
+              .sort((a, b) => b.totalRevenue - a.totalRevenue);
+          };
+
           const filteredSales = getFilteredSales();
           const sortedSales = [...filteredSales].sort((a, b) => new Date(b.date) - new Date(a.date));
+          const topProducts = getTopProducts();
 
           return (
             <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
               <div className="max-w-6xl mx-auto">
                 <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                  <h1 className="text-3xl font-bold text-gray-800 mb-2">📊 Gestion des Ventes</h1>
+                  <h1 className="text-3xl font-bold text-gray-800 mb-2">📊 Gestion des Ventes - KYA DRINKS</h1>
                   <p className="text-gray-600">Suivez vos ventes et analysez vos revenus</p>
                 </div>
 
@@ -505,22 +336,36 @@
                     <Plus /> Ajouter une vente
                   </button>
 
-                  {sales.length === 0 && (
-                    <button
-                      onClick={importInitialData}
-                      className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 font-medium transition-colors"
-                    >
-                      <Upload /> Importer mes données
-                    </button>
-                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleFileImport}
+                    className="hidden"
+                  />
+
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={importing}
+                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 font-medium transition-colors"
+                  >
+                    <FileSpreadsheet /> {importing ? 'Importation...' : 'Importer Excel'}
+                  </button>
+
+                  <button
+                    onClick={() => setShowTopProducts(!showTopProducts)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 font-medium transition-colors"
+                  >
+                    <TrendingUp /> {showTopProducts ? 'Masquer' : 'Produits vendus'}
+                  </button>
 
                   {sales.length > 0 && (
                     <>
                       <button
-                        onClick={exportData}
+                        onClick={exportToExcel}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 font-medium transition-colors"
                       >
-                        <Download /> Exporter
+                        <Download /> Exporter Excel
                       </button>
 
                       <button
@@ -532,6 +377,60 @@
                     </>
                   )}
                 </div>
+
+                {sales.length === 0 && (
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
+                    <h3 className="font-bold text-blue-900 mb-2">💡 Comment importer vos données Excel ?</h3>
+                    <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                      <li>Créez un fichier Excel avec les colonnes : <strong>Date | Article | Quantité | Prix Unitaire | Total</strong></li>
+                      <li>Format de date : <strong>21/01/2026</strong> ou <strong>2026-01-21</strong></li>
+                      <li>Sauvegardez en .xlsx ou .csv</li>
+                      <li>Cliquez sur "Importer Excel" et sélectionnez votre fichier</li>
+                    </ol>
+                  </div>
+                )}
+
+                {/* TOP PRODUITS */}
+                {showTopProducts && topProducts.length > 0 && (
+                  <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                      <Award /> Top Produits Vendus
+                    </h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-purple-600 text-white">
+                          <tr>
+                            <th className="px-4 py-3 text-left">Rang</th>
+                            <th className="px-4 py-3 text-left">Produit</th>
+                            <th className="px-4 py-3 text-center">Quantité vendue</th>
+                            <th className="px-4 py-3 text-right">Chiffre d'affaires</th>
+                            <th className="px-4 py-3 text-center">Nb de ventes</th>
+                            <th className="px-4 py-3 text-right">Prix moyen</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {topProducts.map((product, index) => (
+                            <tr key={index} className={`border-b hover:bg-gray-50 ${index < 3 ? 'bg-yellow-50' : ''}`}>
+                              <td className="px-4 py-3 font-bold">
+                                {index === 0 && '🥇'}
+                                {index === 1 && '🥈'}
+                                {index === 2 && '🥉'}
+                                {index > 2 && `#${index + 1}`}
+                              </td>
+                              <td className="px-4 py-3 font-medium">{product.name}</td>
+                              <td className="px-4 py-3 text-center font-bold text-indigo-600">{product.totalQuantity}</td>
+                              <td className="px-4 py-3 text-right font-bold text-green-600">
+                                {product.totalRevenue.toLocaleString()} XOF
+                              </td>
+                              <td className="px-4 py-3 text-center">{product.salesCount}</td>
+                              <td className="px-4 py-3 text-right">{Math.round(product.avgPrice).toLocaleString()} XOF</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
                 <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
                   <h3 className="text-lg font-bold text-gray-800 mb-4">🔍 Filtrer par période</h3>
@@ -578,64 +477,70 @@
                 {showForm && (
                   <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
                     <h2 className="text-xl font-bold text-gray-800 mb-4">Nouvelle vente</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                        <input
-                          type="date"
-                          value={formData.date}
-                          onChange={(e) => setFormData({...formData, date: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        />
+                    <form onSubmit={handleSubmit}>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                          <input
+                            type="date"
+                            value={formData.date}
+                            onChange={(e) => setFormData({...formData, date: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Article</label>
+                          <input
+                            type="text"
+                            value={formData.article}
+                            onChange={(e) => setFormData({...formData, article: e.target.value})}
+                            placeholder="Nom de l'article"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Quantité</label>
+                          <input
+                            type="number"
+                            value={formData.quantity}
+                            onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value) || 1})}
+                            min="1"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Prix unitaire (XOF)</label>
+                          <input
+                            type="number"
+                            value={formData.unitPrice}
+                            onChange={(e) => setFormData({...formData, unitPrice: e.target.value})}
+                            placeholder="0"
+                            min="0"
+                            step="0.01"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            required
+                          />
+                        </div>
+                        <div className="md:col-span-4 flex gap-2">
+                          <button
+                            type="submit"
+                            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                          >
+                            Enregistrer
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowForm(false)}
+                            className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg font-medium transition-colors"
+                          >
+                            Annuler
+                          </button>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Article</label>
-                        <input
-                          type="text"
-                          value={formData.article}
-                          onChange={(e) => setFormData({...formData, article: e.target.value})}
-                          placeholder="Nom de l'article"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Quantité</label>
-                        <input
-                          type="number"
-                          value={formData.quantity}
-                          onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value) || 1})}
-                          min="1"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Prix unitaire (XOF)</label>
-                        <input
-                          type="number"
-                          value={formData.unitPrice}
-                          onChange={(e) => setFormData({...formData, unitPrice: e.target.value})}
-                          placeholder="0"
-                          min="0"
-                          step="0.01"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        />
-                      </div>
-                      <div className="md:col-span-4 flex gap-2">
-                        <button
-                          onClick={handleSubmit}
-                          disabled={!formData.article || !formData.unitPrice || parseFloat(formData.unitPrice) <= 0}
-                          className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors"
-                        >
-                          Enregistrer
-                        </button>
-                        <button
-                          onClick={() => setShowForm(false)}
-                          className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg font-medium transition-colors"
-                        >
-                          Annuler
-                        </button>
-                      </div>
-                    </div>
+                    </form>
                   </div>
                 )}
 
@@ -659,6 +564,7 @@
                               <div className="flex flex-col items-center">
                                 <Package />
                                 <p className="mt-2">Aucune vente enregistrée</p>
+                                <p className="text-sm text-gray-400 mt-1">Importez un fichier Excel ou ajoutez manuellement</p>
                               </div>
                             </td>
                           </tr>

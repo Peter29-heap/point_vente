@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion des Ventes - KYA DRINKS</title>
+    <title>Gestion - KYA DRINKS</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -57,6 +57,451 @@
         const FileSpreadsheet = () => <span>📊</span>;
         const TrendingUp = () => <span>📈</span>;
         const Award = () => <span>🏆</span>;
+        const Wallet = () => <span>💳</span>;
+        const Receipt = () => <span>🧾</span>;
+
+        function App() {
+          const [activeTab, setActiveTab] = useState('sales');
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+              {/* Header with Tabs */}
+              <div className="bg-white shadow-md">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="flex items-center justify-between py-4">
+                    <h1 className="text-2xl font-bold text-indigo-600">KYA DRINKS</h1>
+                  </div>
+                  <div className="flex space-x-1 border-b">
+                    <button
+                      onClick={() => setActiveTab('sales')}
+                      className={`px-6 py-3 font-medium transition-colors ${
+                        activeTab === 'sales'
+                          ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50'
+                          : 'text-gray-600 hover:text-indigo-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <FileSpreadsheet /> Ventes
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('budget')}
+                      className={`px-6 py-3 font-medium transition-colors ${
+                        activeTab === 'budget'
+                          ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50'
+                          : 'text-gray-600 hover:text-indigo-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Wallet /> Solde Budgétaire
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tab Content */}
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                {activeTab === 'sales' && <SalesTracker />}
+                {activeTab === 'budget' && <BudgetTracker />}
+              </div>
+            </div>
+          );
+        }
+
+        function BudgetTracker() {
+          const [sales, setSales] = useState([]);
+          const [expenses, setExpenses] = useState([]);
+          const [showExpenseForm, setShowExpenseForm] = useState(false);
+          const [expenseForm, setExpenseForm] = useState({
+            date: new Date().toISOString().split('T')[0],
+            category: '',
+            description: '',
+            amount: ''
+          });
+          const [dateFilter, setDateFilter] = useState({
+            startDate: '',
+            endDate: ''
+          });
+
+          useEffect(() => {
+            loadBudgetData();
+          }, []);
+
+          const loadBudgetData = async () => {
+            try {
+              const expensesResult = await storage.get('expenses-data');
+              if (expensesResult && expensesResult.value) {
+                setExpenses(JSON.parse(expensesResult.value));
+              }
+
+              const salesResult = await storage.get('sales-data');
+              if (salesResult && salesResult.value) {
+                setSales(JSON.parse(salesResult.value));
+              }
+            } catch (error) {
+              console.log('Aucune donnée budgétaire sauvegardée');
+            }
+          };
+
+          const saveExpenses = async (newExpenses) => {
+            try {
+              await storage.set('expenses-data', JSON.stringify(newExpenses));
+            } catch (error) {
+              console.error('Erreur de sauvegarde:', error);
+            }
+          };
+
+          const handleExpenseSubmit = (e) => {
+            e.preventDefault();
+            const newExpense = {
+              id: Date.now(),
+              date: expenseForm.date,
+              category: expenseForm.category,
+              description: expenseForm.description,
+              amount: parseFloat(expenseForm.amount)
+            };
+
+            const updatedExpenses = [...expenses, newExpense];
+            setExpenses(updatedExpenses);
+            saveExpenses(updatedExpenses);
+
+            setExpenseForm({
+              date: new Date().toISOString().split('T')[0],
+              category: '',
+              description: '',
+              amount: ''
+            });
+            setShowExpenseForm(false);
+          };
+
+          const deleteExpense = (id) => {
+            if (window.confirm('Voulez-vous vraiment supprimer cette dépense ?')) {
+              const updatedExpenses = expenses.filter(exp => exp.id !== id);
+              setExpenses(updatedExpenses);
+              saveExpenses(updatedExpenses);
+            }
+          };
+
+          const filterByDate = (items) => {
+            return items.filter(item => {
+              if (!dateFilter.startDate && !dateFilter.endDate) return true;
+              const itemDate = new Date(item.date);
+              const start = dateFilter.startDate ? new Date(dateFilter.startDate) : null;
+              const end = dateFilter.endDate ? new Date(dateFilter.endDate) : null;
+
+              if (start && end) {
+                return itemDate >= start && itemDate <= end;
+              } else if (start) {
+                return itemDate >= start;
+              } else if (end) {
+                return itemDate <= end;
+              }
+              return true;
+            });
+          };
+
+          const filteredExpenses = filterByDate(expenses);
+          const filteredSales = filterByDate(sales);
+
+          const sortedExpenses = [...filteredExpenses].sort((a, b) =>
+            new Date(b.date) - new Date(a.date)
+          );
+
+          const totalRevenue = filteredSales.reduce((sum, sale) => sum + (sale.total || 0), 0);
+          const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+          const balance = totalRevenue - totalExpenses;
+          const expensePercentage = totalRevenue > 0 ? (totalExpenses / totalRevenue) * 100 : 0;
+
+          const expensesByCategory = filteredExpenses.reduce((acc, expense) => {
+            if (!acc[expense.category]) {
+              acc[expense.category] = 0;
+            }
+            acc[expense.category] += expense.amount;
+            return acc;
+          }, {});
+
+          return (
+            <div>
+              {/* Date Filter - Now at the top */}
+              <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">
+                  <Calendar /> Filtrer par période
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Date début</label>
+                    <input
+                      type="date"
+                      value={dateFilter.startDate}
+                      onChange={(e) => setDateFilter({...dateFilter, startDate: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Date fin</label>
+                    <input
+                      type="date"
+                      value={dateFilter.endDate}
+                      onChange={(e) => setDateFilter({...dateFilter, endDate: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => setDateFilter({startDate: '', endDate: ''})}
+                  className="text-sm text-indigo-600 hover:text-indigo-800 font-medium mt-4"
+                >
+                  Réinitialiser les filtres
+                </button>
+                {(dateFilter.startDate || dateFilter.endDate) && (
+                  <div className="mt-3 text-sm text-gray-600">
+                    📊 Période: {dateFilter.startDate ? new Date(dateFilter.startDate).toLocaleDateString('fr-FR') : 'Début'} → {dateFilter.endDate ? new Date(dateFilter.endDate).toLocaleDateString('fr-FR') : 'Aujourd\'hui'}
+                  </div>
+                )}
+              </div>
+
+              {/* Budget Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium text-gray-600">Revenus (Ventes)</h3>
+                    <TrendingUp />
+                  </div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {totalRevenue.toLocaleString()} <span className="text-sm text-gray-500">XOF</span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">{filteredSales.length} vente(s)</div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium text-gray-600">Dépenses Totales</h3>
+                    <Receipt />
+                  </div>
+                  <div className="text-2xl font-bold text-red-600">
+                    {totalExpenses.toLocaleString()} <span className="text-sm text-gray-500">XOF</span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">{filteredExpenses.length} dépense(s)</div>
+                  {totalRevenue > 0 && (
+                    <div className="mt-2">
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${expensePercentage > 100 ? 'bg-red-600' : expensePercentage > 75 ? 'bg-orange-500' : 'bg-green-500'}`}
+                          style={{ width: `${Math.min(expensePercentage, 100)}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{expensePercentage.toFixed(1)}% des revenus</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-white rounded-lg shadow-lg p-6 md:col-span-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium text-gray-600">Solde de la période</h3>
+                    <Wallet />
+                  </div>
+                  <div className={`text-3xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {balance.toLocaleString()} <span className="text-base text-gray-500">XOF</span>
+                  </div>
+                  <div className="text-sm text-gray-600 mt-2">
+                    {balance >= 0 ? '✅ Solde positif' : '⚠️ Solde négatif - Dépenses supérieures aux revenus'}
+                  </div>
+                  {balance >= 0 && totalRevenue > 0 && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Marge bénéficiaire: {((balance / totalRevenue) * 100).toFixed(1)}%
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => setShowExpenseForm(!showExpenseForm)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  >
+                    <Plus /> Ajouter une dépense
+                  </button>
+
+                  {expenses.length > 0 && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm('⚠️ Voulez-vous vraiment supprimer TOUTES les dépenses ? Cette action est irréversible.')) {
+                          setExpenses([]);
+                          saveExpenses([]);
+                        }
+                      }}
+                      className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ml-auto"
+                    >
+                      <Trash2 /> Tout supprimer
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Expense Form */}
+              {showExpenseForm && (
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                  <h2 className="text-xl font-bold text-gray-800 mb-4">Nouvelle dépense</h2>
+                  <form onSubmit={handleExpenseSubmit}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                        <input
+                          type="date"
+                          value={expenseForm.date}
+                          onChange={(e) => setExpenseForm({...expenseForm, date: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Catégorie</label>
+                        <select
+                          value={expenseForm.category}
+                          onChange={(e) => setExpenseForm({...expenseForm, category: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          required
+                        >
+                          <option value="">Sélectionner une catégorie</option>
+                          <option value="Approvisionnement">Approvisionnement</option>
+                          <option value="Transport">Transport</option>
+                          <option value="Salaires">Salaires</option>
+                          <option value="Loyer">Loyer</option>
+                          <option value="Électricité">Électricité</option>
+                          <option value="Marketing">Marketing</option>
+                          <option value="Équipement">Équipement</option>
+                          <option value="Maintenance">Maintenance</option>
+                          <option value="Autres">Autres</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <input
+                          type="text"
+                          value={expenseForm.description}
+                          onChange={(e) => setExpenseForm({...expenseForm, description: e.target.value})}
+                          placeholder="Description de la dépense"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Montant (XOF)</label>
+                        <input
+                          type="number"
+                          value={expenseForm.amount}
+                          onChange={(e) => setExpenseForm({...expenseForm, amount: e.target.value})}
+                          placeholder="0"
+                          min="0"
+                          step="0.01"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          required
+                        />
+                      </div>
+                      <div className="md:col-span-2 flex gap-2">
+                        <button
+                          type="submit"
+                          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          Enregistrer
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowExpenseForm(false)}
+                          className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Expenses by Category */}
+              {Object.keys(expensesByCategory).length > 0 && (
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">Dépenses par catégorie</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {Object.entries(expensesByCategory)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([category, amount]) => (
+                        <div key={category} className="bg-gray-50 p-4 rounded-lg">
+                          <div className="text-sm text-gray-600 mb-1">{category}</div>
+                          <div className="text-xl font-bold text-indigo-600">
+                            {amount.toLocaleString()} XOF
+                          </div>
+                          {totalRevenue > 0 && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {((amount / totalRevenue) * 100).toFixed(1)}% des revenus
+                            </div>
+                          )}
+                          {totalExpenses > 0 && (
+                            <div className="text-xs text-gray-400 mt-1">
+                              {((amount / totalExpenses) * 100).toFixed(1)}% des dépenses totales
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Expenses Table */}
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-indigo-600 text-white">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Date</th>
+                        <th className="px-4 py-3 text-left">Catégorie</th>
+                        <th className="px-4 py-3 text-left">Description</th>
+                        <th className="px-4 py-3 text-right">Montant</th>
+                        <th className="px-4 py-3 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedExpenses.length === 0 ? (
+                        <tr>
+                          <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                            <div className="flex flex-col items-center">
+                              <Receipt />
+                              <p className="mt-2">Aucune dépense enregistrée pour cette période</p>
+                              <p className="text-sm text-gray-400 mt-1">Ajoutez vos premières dépenses</p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        sortedExpenses.map((expense) => (
+                          <tr key={expense.id} className="border-b hover:bg-gray-50">
+                            <td className="px-4 py-3">{new Date(expense.date).toLocaleDateString('fr-FR')}</td>
+                            <td className="px-4 py-3">
+                              <span className="inline-block bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-sm">
+                                {expense.category}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">{expense.description}</td>
+                            <td className="px-4 py-3 text-right font-bold text-red-600">
+                              {expense.amount.toLocaleString()} XOF
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                onClick={() => deleteExpense(expense.id)}
+                                className="text-red-600 hover:text-red-800 transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          );
+        }
 
         function SalesTracker() {
           const [sales, setSales] = useState([]);
@@ -173,56 +618,40 @@
 
               if (importedSales.length === 0) {
                 alert('❌ Aucune donnée valide trouvée dans le fichier.\n\nAssurez-vous que les colonnes sont nommées:\n- Date\n- Article\n- Quantité\n- Prix Unitaire\n- Total');
+                setImporting(false);
                 return;
               }
 
-              const updatedSales = [...sales, ...importedSales];
-              setSales(updatedSales);
-              await saveSales(updatedSales);
-
-              alert(`✅ ${importedSales.length} ventes importées avec succès !`);
-              event.target.value = '';
+              const newSales = [...sales, ...importedSales];
+              setSales(newSales);
+              saveSales(newSales);
+              alert(`✅ ${importedSales.length} vente(s) importée(s) avec succès !`);
             } catch (error) {
               console.error('Erreur import:', error);
-              alert('❌ Erreur lors de l\'importation du fichier.\n\n' + error.message);
+              alert('❌ Erreur lors de l\'importation du fichier.\n\nVérifiez que c\'est bien un fichier Excel (.xlsx ou .xls)');
             } finally {
               setImporting(false);
+              if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+              }
             }
-          };
-
-          const exportToExcel = () => {
-            const worksheet = XLSX.utils.json_to_sheet(
-              sales.map(s => ({
-                'Date': new Date(s.date).toLocaleDateString('fr-FR'),
-                'Article': s.article,
-                'Quantité': s.quantity,
-                'Prix Unitaire': s.unitPrice,
-                'Total': s.total
-              }))
-            );
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'Ventes');
-            XLSX.writeFile(workbook, `ventes_${new Date().toISOString().split('T')[0]}.xlsx`);
           };
 
           const handleSubmit = (e) => {
             e.preventDefault();
-            const price = parseFloat(formData.unitPrice);
-            if (!formData.article || !price || price <= 0) {
-              alert('Veuillez remplir tous les champs correctement');
-              return;
-            }
             const newSale = {
               id: Date.now(),
               date: formData.date,
               article: formData.article,
               quantity: formData.quantity,
-              unitPrice: price,
-              total: formData.quantity * price
+              unitPrice: parseFloat(formData.unitPrice),
+              total: formData.quantity * parseFloat(formData.unitPrice)
             };
-            const updatedSales = [...sales, newSale];
-            setSales(updatedSales);
-            saveSales(updatedSales);
+
+            const newSales = [...sales, newSale];
+            setSales(newSales);
+            saveSales(newSales);
+
             setFormData({
               date: new Date().toISOString().split('T')[0],
               article: '',
@@ -233,397 +662,350 @@
           };
 
           const deleteSale = (id) => {
-            if (confirm('Supprimer cette vente ?')) {
-              const updatedSales = sales.filter(sale => sale.id !== id);
-              setSales(updatedSales);
-              saveSales(updatedSales);
+            if (window.confirm('Voulez-vous vraiment supprimer cette vente ?')) {
+              const newSales = sales.filter(sale => sale.id !== id);
+              setSales(newSales);
+              saveSales(newSales);
             }
           };
 
-          const clearAllData = async () => {
-            if (confirm('Êtes-vous sûr de vouloir supprimer toutes les données ? Cette action est irréversible.')) {
-              setSales([]);
-              await storage.delete('sales-data');
+          const exportToExcel = () => {
+            if (filteredSales.length === 0) {
+              alert('Aucune donnée à exporter');
+              return;
             }
+
+            const exportData = filteredSales.map(sale => ({
+              'Date': new Date(sale.date).toLocaleDateString('fr-FR'),
+              'Article': sale.article,
+              'Quantité': sale.quantity,
+              'Prix Unitaire': sale.unitPrice,
+              'Total': sale.total
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Ventes');
+
+            const fileName = `ventes_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
           };
 
-          const getFilteredSales = () => {
-            if (!dateFilter.startDate && !dateFilter.endDate) {
-              return sales;
-            }
-            return sales.filter(sale => {
-              const saleDate = new Date(sale.date);
-              const start = dateFilter.startDate ? new Date(dateFilter.startDate) : null;
-              const end = dateFilter.endDate ? new Date(dateFilter.endDate) : null;
+          const filteredSales = sales.filter(sale => {
+            if (!dateFilter.startDate && !dateFilter.endDate) return true;
+            const saleDate = new Date(sale.date);
+            const start = dateFilter.startDate ? new Date(dateFilter.startDate) : null;
+            const end = dateFilter.endDate ? new Date(dateFilter.endDate) : null;
 
-              if (start && end) {
-                return saleDate >= start && saleDate <= end;
-              } else if (start) {
-                return saleDate >= start;
-              } else if (end) {
-                return saleDate <= end;
-              }
-              return true;
-            });
-          };
+            if (start && end) {
+              return saleDate >= start && saleDate <= end;
+            } else if (start) {
+              return saleDate >= start;
+            } else if (end) {
+              return saleDate <= end;
+            }
+            return true;
+          });
+
+          const sortedSales = [...filteredSales].sort((a, b) =>
+            new Date(b.date) - new Date(a.date)
+          );
 
           const calculateTotal = () => {
-            return getFilteredSales().reduce((sum, sale) => sum + sale.total, 0);
+            return filteredSales.reduce((sum, sale) => sum + sale.total, 0);
           };
 
-          // Analyse des produits les plus vendus
           const getTopProducts = () => {
-            const filteredSales = getFilteredSales();
             const productStats = {};
-
             filteredSales.forEach(sale => {
-              const productName = sale.article.toUpperCase();
-              if (!productStats[productName]) {
-                productStats[productName] = {
-                  name: sale.article,
+              if (!productStats[sale.article]) {
+                productStats[sale.article] = {
+                  article: sale.article,
                   totalQuantity: 0,
                   totalRevenue: 0,
-                  salesCount: 0,
-                  avgPrice: 0
+                  salesCount: 0
                 };
               }
-              productStats[productName].totalQuantity += sale.quantity;
-              productStats[productName].totalRevenue += sale.total;
-              productStats[productName].salesCount += 1;
+              productStats[sale.article].totalQuantity += sale.quantity;
+              productStats[sale.article].totalRevenue += sale.total;
+              productStats[sale.article].salesCount += 1;
             });
 
-            // Calculer le prix moyen
-            Object.keys(productStats).forEach(key => {
-              const product = productStats[key];
-              product.avgPrice = product.totalRevenue / product.totalQuantity;
-            });
-
-            // Convertir en tableau et trier
             return Object.values(productStats)
-              .sort((a, b) => b.totalRevenue - a.totalRevenue);
+              .sort((a, b) => b.totalRevenue - a.totalRevenue)
+              .slice(0, 5);
           };
 
-          const filteredSales = getFilteredSales();
-          const sortedSales = [...filteredSales].sort((a, b) => new Date(b.date) - new Date(a.date));
-          const topProducts = getTopProducts();
-
           return (
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-              <div className="max-w-6xl mx-auto">
-                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                  <h1 className="text-3xl font-bold text-gray-800 mb-2">📊 Gestion des Ventes - KYA DRINKS</h1>
-                  <p className="text-gray-600">Suivez vos ventes et analysez vos revenus</p>
-                </div>
-
-                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-lg p-8 mb-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-lg font-medium mb-2 opacity-90">💰 Total de toutes les ventes</h2>
-                      <div className="text-5xl font-bold">
-                        {sales.reduce((sum, sale) => sum + sale.total, 0).toLocaleString()} XOF
-                      </div>
-                      <p className="text-sm mt-2 opacity-75">{sales.length} vente{sales.length > 1 ? 's' : ''} enregistrée{sales.length > 1 ? 's' : ''}</p>
-                    </div>
-                    <div className="text-6xl opacity-20">📊</div>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-3 mb-6">
+            <div>
+              <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div className="flex flex-wrap gap-3">
                   <button
                     onClick={() => setShowForm(!showForm)}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 font-medium transition-colors"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
                   >
                     <Plus /> Ajouter une vente
                   </button>
 
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={handleFileImport}
-                    className="hidden"
-                  />
+                  <label className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-2">
+                    <Upload /> {importing ? 'Importation...' : 'Importer Excel'}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleFileImport}
+                      className="hidden"
+                      disabled={importing}
+                    />
+                  </label>
 
                   <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={importing}
-                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 font-medium transition-colors"
+                    onClick={exportToExcel}
+                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
                   >
-                    <FileSpreadsheet /> {importing ? 'Importation...' : 'Importer Excel'}
+                    <Download /> Exporter Excel
                   </button>
 
                   <button
                     onClick={() => setShowTopProducts(!showTopProducts)}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 font-medium transition-colors"
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
                   >
-                    <TrendingUp /> {showTopProducts ? 'Masquer' : 'Produits vendus'}
+                    <Award /> Top Produits
                   </button>
 
                   {sales.length > 0 && (
-                    <>
-                      <button
-                        onClick={exportToExcel}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 font-medium transition-colors"
-                      >
-                        <Download /> Exporter Excel
-                      </button>
-
-                      <button
-                        onClick={clearAllData}
-                        className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 font-medium transition-colors"
-                      >
-                        <Trash2 /> Tout supprimer
-                      </button>
-                    </>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('⚠️ Voulez-vous vraiment supprimer TOUTES les ventes ? Cette action est irréversible.')) {
+                          setSales([]);
+                          saveSales([]);
+                        }
+                      }}
+                      className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ml-auto"
+                    >
+                      <Trash2 /> Tout supprimer
+                    </button>
                   )}
                 </div>
+              </div>
 
-                {sales.length === 0 && (
-                  <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
-                    <h3 className="font-bold text-blue-900 mb-2">💡 Comment importer vos données Excel ?</h3>
-                    <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                      <li>Créez un fichier Excel avec les colonnes : <strong>Date | Article | Quantité | Prix Unitaire | Total</strong></li>
-                      <li>Format de date : <strong>21/01/2026</strong> ou <strong>2026-01-21</strong></li>
-                      <li>Sauvegardez en .xlsx ou .csv</li>
-                      <li>Cliquez sur "Importer Excel" et sélectionnez votre fichier</li>
-                    </ol>
-                  </div>
-                )}
-
-                {/* TOP PRODUITS */}
-                {showTopProducts && topProducts.length > 0 && (
-                  <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                      <Award /> Top Produits Vendus
-                    </h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-purple-600 text-white">
-                          <tr>
-                            <th className="px-4 py-3 text-left">Rang</th>
-                            <th className="px-4 py-3 text-left">Produit</th>
-                            <th className="px-4 py-3 text-center">Quantité vendue</th>
-                            <th className="px-4 py-3 text-right">Chiffre d'affaires</th>
-                            <th className="px-4 py-3 text-center">Nb de ventes</th>
-                            <th className="px-4 py-3 text-right">Prix moyen</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {topProducts.map((product, index) => (
-                            <tr key={index} className={`border-b hover:bg-gray-50 ${index < 3 ? 'bg-yellow-50' : ''}`}>
-                              <td className="px-4 py-3 font-bold">
-                                {index === 0 && '🥇'}
-                                {index === 1 && '🥈'}
-                                {index === 2 && '🥉'}
-                                {index > 2 && `#${index + 1}`}
-                              </td>
-                              <td className="px-4 py-3 font-medium">{product.name}</td>
-                              <td className="px-4 py-3 text-center font-bold text-indigo-600">{product.totalQuantity}</td>
-                              <td className="px-4 py-3 text-right font-bold text-green-600">
-                                {product.totalRevenue.toLocaleString()} XOF
-                              </td>
-                              <td className="px-4 py-3 text-center">{product.salesCount}</td>
-                              <td className="px-4 py-3 text-right">{Math.round(product.avgPrice).toLocaleString()} XOF</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
+              {showTopProducts && (
                 <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4">🔍 Filtrer par période</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <Calendar /> Date début
-                      </label>
-                      <input
-                        type="date"
-                        value={dateFilter.startDate}
-                        onChange={(e) => setDateFilter({...dateFilter, startDate: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      />
+                  <h2 className="text-xl font-bold text-gray-800 mb-4">
+                    <Award /> Top 5 des produits
+                  </h2>
+                  <div className="space-y-3">
+                    {getTopProducts().map((product, index) => (
+                      <div key={product.article} className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl font-bold text-purple-600">#{index + 1}</span>
+                          <div>
+                            <div className="font-bold text-gray-800">{product.article}</div>
+                            <div className="text-sm text-gray-600">
+                              {product.totalQuantity} unités vendues • {product.salesCount} ventes
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xl font-bold text-purple-600">
+                            {product.totalRevenue.toLocaleString()} XOF
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">
+                  <Calendar /> Filtrer par période
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Date début</label>
+                    <input
+                      type="date"
+                      value={dateFilter.startDate}
+                      onChange={(e) => setDateFilter({...dateFilter, startDate: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Date fin</label>
+                    <input
+                      type="date"
+                      value={dateFilter.endDate}
+                      onChange={(e) => setDateFilter({...dateFilter, endDate: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <DollarSign /> Total de la période
+                    </label>
+                    <div className="text-3xl font-bold text-indigo-600">
+                      {calculateTotal().toLocaleString()} XOF
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <Calendar /> Date fin
-                      </label>
-                      <input
-                        type="date"
-                        value={dateFilter.endDate}
-                        onChange={(e) => setDateFilter({...dateFilter, endDate: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      />
+                  </div>
+                </div>
+                <button
+                  onClick={() => setDateFilter({startDate: '', endDate: ''})}
+                  className="text-sm text-indigo-600 hover:text-indigo-800 font-medium mt-4"
+                >
+                  Réinitialiser les filtres
+                </button>
+              </div>
+
+              {showForm && (
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                  <h2 className="text-xl font-bold text-gray-800 mb-4">Nouvelle vente</h2>
+                  <form onSubmit={handleSubmit}>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                        <input
+                          type="date"
+                          value={formData.date}
+                          onChange={(e) => setFormData({...formData, date: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Article</label>
+                        <input
+                          type="text"
+                          value={formData.article}
+                          onChange={(e) => setFormData({...formData, article: e.target.value})}
+                          placeholder="Nom de l'article"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Quantité</label>
+                        <input
+                          type="number"
+                          value={formData.quantity}
+                          onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value) || 1})}
+                          min="1"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Prix unitaire (XOF)</label>
+                        <input
+                          type="number"
+                          value={formData.unitPrice}
+                          onChange={(e) => setFormData({...formData, unitPrice: e.target.value})}
+                          placeholder="0"
+                          min="0"
+                          step="0.01"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          required
+                        />
+                      </div>
+                      <div className="md:col-span-4 flex gap-2">
+                        <button
+                          type="submit"
+                          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          Enregistrer
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowForm(false)}
+                          className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          Annuler
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <DollarSign /> Total de la période
-                      </label>
-                      <div className="text-3xl font-bold text-indigo-600">
+                  </form>
+                </div>
+              )}
+
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-indigo-600 text-white">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Date</th>
+                        <th className="px-4 py-3 text-left">Article</th>
+                        <th className="px-4 py-3 text-center">Quantité</th>
+                        <th className="px-4 py-3 text-right">Prix Unit.</th>
+                        <th className="px-4 py-3 text-right">Total</th>
+                        <th className="px-4 py-3 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedSales.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
+                            <div className="flex flex-col items-center">
+                              <Package />
+                              <p className="mt-2">Aucune vente enregistrée</p>
+                              <p className="text-sm text-gray-400 mt-1">Importez un fichier Excel ou ajoutez manuellement</p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        sortedSales.map((sale) => (
+                          <tr key={sale.id} className="border-b hover:bg-gray-50">
+                            <td className="px-4 py-3">{new Date(sale.date).toLocaleDateString('fr-FR')}</td>
+                            <td className="px-4 py-3 font-medium">{sale.article}</td>
+                            <td className="px-4 py-3 text-center">{sale.quantity}</td>
+                            <td className="px-4 py-3 text-right">{sale.unitPrice.toLocaleString()} XOF</td>
+                            <td className="px-4 py-3 text-right font-bold text-indigo-600">
+                              {sale.total.toLocaleString()} XOF
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                onClick={() => deleteSale(sale.id)}
+                                className="text-red-600 hover:text-red-800 transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {filteredSales.length > 0 && (
+                <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">📈 Statistiques</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <div className="text-sm text-gray-600 mb-1">Nombre de ventes</div>
+                      <div className="text-2xl font-bold text-blue-600">{filteredSales.length}</div>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <div className="text-sm text-gray-600 mb-1">Total des ventes</div>
+                      <div className="text-2xl font-bold text-green-600">
                         {calculateTotal().toLocaleString()} XOF
                       </div>
                     </div>
-                  </div>
-                  <button
-                    onClick={() => setDateFilter({startDate: '', endDate: ''})}
-                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-                  >
-                    Réinitialiser les filtres
-                  </button>
-                </div>
-
-                {showForm && (
-                  <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">Nouvelle vente</h2>
-                    <form onSubmit={handleSubmit}>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                          <input
-                            type="date"
-                            value={formData.date}
-                            onChange={(e) => setFormData({...formData, date: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Article</label>
-                          <input
-                            type="text"
-                            value={formData.article}
-                            onChange={(e) => setFormData({...formData, article: e.target.value})}
-                            placeholder="Nom de l'article"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Quantité</label>
-                          <input
-                            type="number"
-                            value={formData.quantity}
-                            onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value) || 1})}
-                            min="1"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Prix unitaire (XOF)</label>
-                          <input
-                            type="number"
-                            value={formData.unitPrice}
-                            onChange={(e) => setFormData({...formData, unitPrice: e.target.value})}
-                            placeholder="0"
-                            min="0"
-                            step="0.01"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            required
-                          />
-                        </div>
-                        <div className="md:col-span-4 flex gap-2">
-                          <button
-                            type="submit"
-                            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-                          >
-                            Enregistrer
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowForm(false)}
-                            className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg font-medium transition-colors"
-                          >
-                            Annuler
-                          </button>
-                        </div>
-                      </div>
-                    </form>
-                  </div>
-                )}
-
-                <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-indigo-600 text-white">
-                        <tr>
-                          <th className="px-4 py-3 text-left">Date</th>
-                          <th className="px-4 py-3 text-left">Article</th>
-                          <th className="px-4 py-3 text-center">Quantité</th>
-                          <th className="px-4 py-3 text-right">Prix Unit.</th>
-                          <th className="px-4 py-3 text-right">Total</th>
-                          <th className="px-4 py-3 text-center">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sortedSales.length === 0 ? (
-                          <tr>
-                            <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
-                              <div className="flex flex-col items-center">
-                                <Package />
-                                <p className="mt-2">Aucune vente enregistrée</p>
-                                <p className="text-sm text-gray-400 mt-1">Importez un fichier Excel ou ajoutez manuellement</p>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : (
-                          sortedSales.map((sale) => (
-                            <tr key={sale.id} className="border-b hover:bg-gray-50">
-                              <td className="px-4 py-3">{new Date(sale.date).toLocaleDateString('fr-FR')}</td>
-                              <td className="px-4 py-3 font-medium">{sale.article}</td>
-                              <td className="px-4 py-3 text-center">{sale.quantity}</td>
-                              <td className="px-4 py-3 text-right">{sale.unitPrice.toLocaleString()} XOF</td>
-                              <td className="px-4 py-3 text-right font-bold text-indigo-600">
-                                {sale.total.toLocaleString()} XOF
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <button
-                                  onClick={() => deleteSale(sale.id)}
-                                  className="text-red-600 hover:text-red-800 transition-colors"
-                                  title="Supprimer"
-                                >
-                                  <Trash2 />
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {filteredSales.length > 0 && (
-                  <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4">📈 Statistiques</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-blue-50 p-4 rounded-lg">
-                        <div className="text-sm text-gray-600 mb-1">Nombre de ventes</div>
-                        <div className="text-2xl font-bold text-blue-600">{filteredSales.length}</div>
-                      </div>
-                      <div className="bg-green-50 p-4 rounded-lg">
-                        <div className="text-sm text-gray-600 mb-1">Total des ventes</div>
-                        <div className="text-2xl font-bold text-green-600">
-                          {calculateTotal().toLocaleString()} XOF
-                        </div>
-                      </div>
-                      <div className="bg-purple-50 p-4 rounded-lg">
-                        <div className="text-sm text-gray-600 mb-1">Vente moyenne</div>
-                        <div className="text-2xl font-bold text-purple-600">
-                          {Math.round(calculateTotal() / filteredSales.length).toLocaleString()} XOF
-                        </div>
+                    <div className="bg-purple-50 p-4 rounded-lg">
+                      <div className="text-sm text-gray-600 mb-1">Vente moyenne</div>
+                      <div className="text-2xl font-bold text-purple-600">
+                        {Math.round(calculateTotal() / filteredSales.length).toLocaleString()} XOF
                       </div>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           );
         }
 
-        ReactDOM.render(<SalesTracker />, document.getElementById('root'));
+        ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
 </html>
